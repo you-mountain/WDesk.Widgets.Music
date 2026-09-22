@@ -3,7 +3,7 @@
     "name":  "Music",
     "description":  "Music visualizer with track info from Windows Media Session",
     "author":  "WDesk Team",
-    "version":  "1.0.0",
+    "version":  "1.0.1",
     "previewEmoji":  "🎵",
     "category":  "Music",
     "tags":  [
