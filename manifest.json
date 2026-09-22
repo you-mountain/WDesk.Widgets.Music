@@ -1,18 +1,20 @@
 ﻿{
-  "id": "music",
-  "name": "Music",
-  "description": "Music widget for WDesk",
-  "author": "WDesk Team",
-  "version": "1.0.0",
-  "previewEmoji": "Art",
-  "category": "Music",
-  "tags": ["music"],
-  "mainAssembly": "WDesk.Widgets.Music.dll",
-  "mainType": "WDesk.Widgets.Music.MusicWidget",
-  "minWDeskVersion": "1.0.0",
-  "isPaid": false,
-  "price": 0,
-  "currency": "USD",
-  "official": true,
-  "licenseServerUrl": ""
+    "id":  "music",
+    "name":  "Music",
+    "description":  "Music widget for WDesk",
+    "author":  "WDesk Team",
+    "version":  "1.0.0",
+    "previewEmoji":  "Art",
+    "category":  "Music",
+    "tags":  [
+                 "music"
+             ],
+    "mainAssembly":  "WDesk.Widgets.Music.dll",
+    "mainType":  "WDesk.Widgets.Music.MusicWidget",
+    "minWDeskVersion":  "1.0.0",
+    "isPaid":  false,
+    "price":  0,
+    "currency":  "USD",
+    "official":  true,
+    "licenseServerUrl":  ""
 }

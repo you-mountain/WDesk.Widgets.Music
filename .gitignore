@@ -1,4 +1,4 @@
-﻿[Bb]in/
+[Bb]in/
 [Oo]bj/
 [Pp]ublish/
 *.zip
@@ -11,3 +11,6 @@
 packages/
 Thumbs.db
 Desktop.ini
+
+releases/
+pkg_temp/
