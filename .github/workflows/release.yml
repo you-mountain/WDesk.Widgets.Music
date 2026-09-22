@@ -1,0 +1,104 @@
+﻿name: Release Widget
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          $buildDir = "bin\Release\net8.0-windows10.0.19041.0"
+          $packageDir = "package"
+
+          if (Test-Path $packageDir) { Remove-Item $packageDir -Recurse -Force }
+          New-Item -ItemType Directory -Path $packageDir | Out-Null
+
+          Copy-Item "manifest.json" $packageDir
+          Copy-Item "$buildDir\WDesk.Widgets.Music.dll" $packageDir
+
+          $pdbFile = Join-Path $buildDir "WDesk.Widgets.Music.pdb"
+          if (Test-Path $pdbFile) { Copy-Item $pdbFile $packageDir }
+
+          Compress-Archive -Path "$packageDir\*" -DestinationPath "music.zip"
+
+          $hash = (Get-FileHash "music.zip" -Algorithm SHA256).Hash.ToLower()
+          $size = (Get-Item "music.zip").Length
+
+          "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SIZE=$size" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Get version
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "manifest.json" | ConvertFrom-Json
+          $version = $manifest.version
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: "Music v${{ env.VERSION }}"
+          body: |
+            ## Music v${{ env.VERSION }}
+            - SHA256: ${{ env.SHA256 }}
+            - Size: ${{ env.SIZE }} bytes
+          files: "music.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify marketplace
+        shell: pwsh
+        env:
+          MARKETPLACE_TOKEN: ${{ secrets.MARKETPLACE_TOKEN }}
+        run: |
+          $version = "${{ env.VERSION }}"
+          $downloadUrl = "https://github.com/you-mountain/WDesk.Widgets.Music/releases/download/v$version/music.zip"
+
+          $body = @{
+            event_type = "widget-release"
+            client_payload = @{
+              widgetId = "music"
+              version = $version
+              downloadUrl = $downloadUrl
+              fileSize = "${{ env.SIZE }}"
+              sha256 = "${{ env.SHA256 }}"
+              changelog = "Release v$version"
+            }
+          } | ConvertTo-Json -Depth 5
+
+          $headers = @{
+            "Accept" = "application/vnd.github+json"
+            "Authorization" = "Bearer $env:MARKETPLACE_TOKEN"
+          }
+
+          try {
+            Invoke-RestMethod -Uri "https://api.github.com/repos/you-mountain/wdesk-marketplace/dispatches" -Method Post -Headers $headers -Body $body -ContentType "application/json"
+            Write-Host "Marketplace notified!"
+          } catch {
+            Write-Host "Notification failed: $_" -ForegroundColor Yellow
+          }

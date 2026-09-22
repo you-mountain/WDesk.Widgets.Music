@@ -1,0 +1,13 @@
+﻿[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+*.zip
+.vs/
+*.user
+*.suo
+*.userprefs
+*.nupkg
+*.snupkg
+packages/
+Thumbs.db
+Desktop.ini
