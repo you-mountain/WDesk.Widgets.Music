@@ -1,0 +1,23 @@
+﻿{
+    "id":  "music",
+    "name":  "Music",
+    "description":  "Music visualizer with track info from Windows Media Session",
+    "author":  "WDesk Team",
+    "version":  "1.0.0",
+    "previewEmoji":  "🎵",
+    "category":  "Music",
+    "tags":  [
+                 "music",
+                 "visualizer",
+                 "audio",
+                 "player"
+             ],
+    "mainAssembly":  "WDesk.Widgets.Music.dll",
+    "mainType":  "WDesk.Widgets.Music.MusicWidget",
+    "minWDeskVersion":  "1.0.0",
+    "isPaid":  false,
+    "price":  0,
+    "currency":  "USD",
+    "official":  true,
+    "licenseServerUrl":  ""
+}
