@@ -1,13 +1,16 @@
 ﻿{
     "id":  "music",
     "name":  "Music",
-    "description":  "Music widget for WDesk",
+    "description":  "Music visualizer with track info from Windows Media Session",
     "author":  "WDesk Team",
     "version":  "1.0.0",
-    "previewEmoji":  "Art",
+    "previewEmoji":  "🎵",
     "category":  "Music",
     "tags":  [
-                 "music"
+                 "music",
+                 "visualizer",
+                 "audio",
+                 "player"
              ],
     "mainAssembly":  "WDesk.Widgets.Music.dll",
     "mainType":  "WDesk.Widgets.Music.MusicWidget",

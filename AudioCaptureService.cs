@@ -2,7 +2,6 @@
 using NAudio.Wave;
 using System;
 using System.Numerics;
-using Windows.UI.Input;
 using Complex = NAudio.Dsp.Complex;
 using MediaColor = System.Windows.Media.Color;
 

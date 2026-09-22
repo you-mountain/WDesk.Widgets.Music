@@ -11,9 +11,16 @@ namespace WDesk.Widgets.Music.Style
 {
     public class Style1 : StyleBase
     {
-        private Rectangle[] _bars = new Rectangle[0];
-        private DispatcherTimer _renderTimer;
-        private DispatcherTimer _infoTimer;
+        private Rectangle[] _bars = Array.Empty<Rectangle>();
+        private DispatcherTimer? _renderTimer;
+        private TrackInfoService? _track;
+
+        // Track UI refs
+        private Border? _coverBox;
+        private TextBlock? _titleText;
+        private TextBlock? _artistText;
+        private SolidColorBrush? _accentBrush;
+        private Border? _innerCircle;
 
         public override FrameworkElement Build(PlacedWidget instance)
         {
@@ -23,71 +30,61 @@ namespace WDesk.Widgets.Music.Style
             var showTrackInfo = GetBool(instance, "show_track_info", true);
             var showCover = GetBool(instance, "show_cover", true);
 
-            var trackService = TrackInfoService.Instance;
+            _track = TrackInfoService.Instance;
 
             var root = new Grid();
+            root.Children.Add(BuildBackground());
 
-            // ═══ Background — WDesk core ═══
-            var bg = BuildBackground();
-            root.Children.Add(bg);
-
-            // ═══ Layout ═══
             var content = new Grid { Margin = new Thickness(16, 14, 16, 14) };
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Track info
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Label
-            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Bars
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.Children.Add(content);
 
-            // ═══ Track Info Row ═══
-            var trackInfoPanel = new Grid();
-            trackInfoPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // Cover
-            trackInfoPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Text
-            trackInfoPanel.Visibility = showTrackInfo ? Visibility.Visible : Visibility.Collapsed;
+            // ═══ Track Info ═══
+            var trackPanel = new Grid
+            {
+                Visibility = showTrackInfo ? Visibility.Visible : Visibility.Collapsed
+            };
+            trackPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            trackPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Cover
-            var coverBox = new Border
+            _coverBox = new Border
             {
                 Width = 40,
                 Height = 40,
                 CornerRadius = new CornerRadius(8),
                 VerticalAlignment = VerticalAlignment.Center,
                 ClipToBounds = true,
-                Background = new SolidColorBrush(Color.FromArgb(0x30, 0x3B, 0x82, 0xF6))
+                Background = new SolidColorBrush(Color.FromArgb(0x30, 0x3B, 0x82, 0xF6)),
+                Visibility = showCover ? Visibility.Visible : Visibility.Collapsed
             };
 
-            if (trackService.CoverArt != null)
-            {
-                coverBox.Child = new Image
-                {
-                    Source = trackService.CoverArt,
-                    Stretch = Stretch.UniformToFill
-                };
-            }
-            coverBox.Visibility = showCover ? Visibility.Visible : Visibility.Collapsed;
+            if (_track.CoverArt != null)
+                _coverBox.Child = new Image { Source = _track.CoverArt, Stretch = Stretch.UniformToFill };
 
-            Grid.SetColumn(coverBox, 0);
-            trackInfoPanel.Children.Add(coverBox);
+            Grid.SetColumn(_coverBox, 0);
+            trackPanel.Children.Add(_coverBox);
 
-            // Text
-            var textPanel = new StackPanel
+            var textStack = new StackPanel
             {
                 Margin = new Thickness(10, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var titleText = new TextBlock
+            _titleText = new TextBlock
             {
-                Text = trackService.Title,
+                Text = _track.Title,
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(GetThemeColor("WidgetTextPrimary", Colors.White)),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            textPanel.Children.Add(titleText);
+            textStack.Children.Add(_titleText);
 
-            var artistText = new TextBlock
+            _artistText = new TextBlock
             {
-                Text = trackService.Artist,
+                Text = _track.Artist,
                 FontSize = 10,
                 Foreground = new SolidColorBrush(Color.FromArgb(0xA0,
                     GetThemeColor("WidgetTextPrimary", Colors.White).R,
@@ -95,13 +92,13 @@ namespace WDesk.Widgets.Music.Style
                     GetThemeColor("WidgetTextPrimary", Colors.White).B)),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            textPanel.Children.Add(artistText);
+            textStack.Children.Add(_artistText);
 
-            Grid.SetColumn(textPanel, 1);
-            trackInfoPanel.Children.Add(textPanel);
+            Grid.SetColumn(textStack, 1);
+            trackPanel.Children.Add(textStack);
 
-            Grid.SetRow(trackInfoPanel, 0);
-            content.Children.Add(trackInfoPanel);
+            Grid.SetRow(trackPanel, 0);
+            content.Children.Add(trackPanel);
 
             // ═══ Label ═══
             if (showLabel)
@@ -124,15 +121,11 @@ namespace WDesk.Widgets.Music.Style
 
             // ═══ Bars ═══
             var accentColor = ResolveAccentColor(instance);
-            var accentBrush = new SolidColorBrush(accentColor);
+            _accentBrush = new SolidColorBrush(accentColor);
 
-            var eqGrid = new UniformGrid
-            {
-                Rows = 1,
-                VerticalAlignment = VerticalAlignment.Bottom
-            };
-
+            var eqGrid = new UniformGrid { Rows = 1, VerticalAlignment = VerticalAlignment.Bottom };
             _bars = new Rectangle[barsCount];
+
             for (int i = 0; i < barsCount; i++)
             {
                 var bar = new Rectangle
@@ -140,7 +133,7 @@ namespace WDesk.Widgets.Music.Style
                     Height = 4,
                     RadiusX = 2,
                     RadiusY = 2,
-                    Fill = accentBrush,
+                    Fill = _accentBrush,
                     VerticalAlignment = VerticalAlignment.Bottom,
                     Margin = new Thickness(1, 0, 1, 0),
                     MinHeight = 4
@@ -152,67 +145,90 @@ namespace WDesk.Widgets.Music.Style
             Grid.SetRow(eqGrid, 2);
             content.Children.Add(eqGrid);
 
-            // ═══ Render Loop ═══
-            _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-            _renderTimer.Tick += (s, e) =>
+            // ═══ Event subscriptions ═══
+            void onTrackChanged()
             {
-                var spectrum = AudioCaptureService.Instance.Spectrum;
-                var spectrumLen = spectrum.Length;
-                var maxHeight = 60.0;
+                if (root.Dispatcher.CheckAccess())
+                    UpdateTrackInfo(showCover);
+                else
+                    root.Dispatcher.BeginInvoke(new Action(() => UpdateTrackInfo(showCover)));
+            }
 
-                // ★ Accent از cover
-                var newAccentColor = ResolveAccentColor(instance);
-                if (accentBrush.Color != newAccentColor)
-                {
-                    accentBrush.Color = newAccentColor;
-                }
+            _track.TrackChanged += onTrackChanged;
 
-                for (int i = 0; i < _bars.Length; i++)
-                {
-                    var srcIdx = (int)(i / (double)_bars.Length * spectrumLen);
-                    if (srcIdx < 0) srcIdx = 0;
-                    if (srcIdx >= spectrumLen) srcIdx = spectrumLen - 1;
-
-                    var amplitude = spectrum[srcIdx] * sensitivity;
-                    if (amplitude < 0) amplitude = 0;
-                    if (amplitude > 1) amplitude = 1;
-
-                    var targetHeight = 4 + amplitude * (maxHeight - 4);
-                    var currentHeight = _bars[i].Height;
-                    var newHeight = Math.Max(targetHeight, currentHeight * 0.7);
-
-                    _bars[i].Height = Math.Min(newHeight, maxHeight);
-                }
-            };
+            // ═══ Render timer ═══
+            _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _renderTimer.Tick += (s, e) => RenderBars(sensitivity);
             _renderTimer.Start();
 
-            // ═══ Track Info Update ═══
-            _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _infoTimer.Tick += (s, e) =>
-            {
-                titleText.Text = trackService.Title;
-                artistText.Text = trackService.Artist;
-
-                if (showCover && trackService.CoverArt != null && coverBox.Child is not Image)
-                {
-                    coverBox.Child = new Image
-                    {
-                        Source = trackService.CoverArt,
-                        Stretch = Stretch.UniformToFill
-                    };
-                }
-            };
-            _infoTimer.Start();
-
+            // ═══ Cleanup ═══
             root.Unloaded += (s, e) =>
             {
                 _renderTimer?.Stop();
                 _renderTimer = null;
-                _infoTimer?.Stop();
-                _infoTimer = null;
+
+                if (_track != null)
+                    _track.TrackChanged -= onTrackChanged;
+
+                _track = null;
             };
 
             return root;
+        }
+
+        private void RenderBars(double sensitivity)
+        {
+            try
+            {
+                var spectrum = AudioCaptureService.Instance.Spectrum;
+                var len = spectrum.Length;
+                if (len == 0) return;
+
+                const double maxHeight = 60.0;
+
+                // Dynamic accent from cover art
+                if (_accentBrush != null && _track != null)
+                {
+                    var newColor = _track.DominantColor;
+                    if (_accentBrush.Color != newColor)
+                        _accentBrush.Color = newColor;
+                }
+
+                for (int i = 0; i < _bars.Length; i++)
+                {
+                    var srcIdx = (int)(i / (double)_bars.Length * len);
+                    srcIdx = Math.Clamp(srcIdx, 0, len - 1);
+
+                    var amp = Math.Clamp(spectrum[srcIdx] * sensitivity, 0, 1);
+                    var target = 4 + amp * (maxHeight - 4);
+                    var current = _bars[i].Height;
+                    var smoothed = Math.Max(target, current * 0.7);
+
+                    _bars[i].Height = Math.Min(smoothed, maxHeight);
+                }
+            }
+            catch { }
+        }
+
+        private void UpdateTrackInfo(bool showCover)
+        {
+            try
+            {
+                if (_track == null) return;
+
+                if (_titleText != null) _titleText.Text = _track.Title;
+                if (_artistText != null) _artistText.Text = _track.Artist;
+
+                if (showCover && _track.CoverArt != null && _coverBox != null)
+                {
+                    _coverBox.Child = new Image
+                    {
+                        Source = _track.CoverArt,
+                        Stretch = Stretch.UniformToFill
+                    };
+                }
+            }
+            catch { }
         }
     }
 }
