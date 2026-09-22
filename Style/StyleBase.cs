@@ -11,49 +11,30 @@ namespace WDesk.Widgets.Music.Style
     {
         public abstract FrameworkElement Build(PlacedWidget instance);
 
-        protected static Border BuildBackground(string mode, int opacity, double cornerRadius)
+        // ═══════════════════════════════════════════
+        //  ★ Background — از WDesk core میاد
+        // ═══════════════════════════════════════════
+        protected static Border BuildBackground()
         {
             var border = new Border
             {
-                CornerRadius = new CornerRadius(cornerRadius),
+                CornerRadius = new CornerRadius(16),
                 ClipToBounds = true
             };
-
-            byte alpha = (byte)(Math.Clamp(opacity, 0, 100) * 255 / 100);
-
-            if (mode == "transparent")
-            {
-                border.Background = Brushes.Transparent;
-            }
-            else if (mode == "glass")
-            {
-                border.Background = new SolidColorBrush(Color.FromArgb(alpha, 0x20, 0x20, 0x28));
-                border.BorderBrush = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-                border.BorderThickness = new Thickness(1);
-            }
-            else if (mode == "acrylic")
-            {
-                border.Background = new SolidColorBrush(Color.FromArgb(alpha, 0x14, 0x14, 0x1C));
-                border.BorderBrush = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
-                border.BorderThickness = new Thickness(1);
-            }
-            else if (mode == "gradient")
-            {
-                var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
-                g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, 0x2A, 0x2A, 0x3A), 0));
-                g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, 0x1A, 0x1A, 0x24), 1));
-                border.Background = g;
-            }
-            else
-            {
-                var baseColor = GetThemeColor("WidgetBg", Color.FromRgb(0x1E, 0x1E, 0x22));
-                border.Background = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
-            }
-
+            border.SetResourceReference(Border.BackgroundProperty, "WidgetBg");
             return border;
         }
 
-        protected static Effect BuildShadow(bool enabled, int intensity)
+        // ★ Overload قدیمی — برای سازگاری
+        protected static Border BuildBackground(string mode, int opacity, double cornerRadius)
+        {
+            return BuildBackground();
+        }
+
+        // ═══════════════════════════════════════════
+        //  ★ Shadow — از WDesk core یا خالی
+        // ═══════════════════════════════════════════
+        protected static Effect BuildShadow(bool enabled, int intensity = 12)
         {
             if (!enabled || intensity <= 0) return null;
             return new DropShadowEffect
@@ -66,10 +47,33 @@ namespace WDesk.Widgets.Music.Style
             };
         }
 
+        // ═══════════════════════════════════════════
+        //  ★ Accent Color — از WDesk core یا cover art
+        // ═══════════════════════════════════════════
+        protected static Color ResolveAccentColor(PlacedWidget instance)
+        {
+            // ★ اگه cover color فعاله، از track info بگیر
+            var useCoverColor = GetBool(instance, "use_cover_color", true);
+            if (useCoverColor)
+            {
+                try
+                {
+                    var trackService = TrackInfoService.Instance;
+                    if (trackService != null && trackService.CoverArt != null)
+                    {
+                        return trackService.DominantColor;
+                    }
+                }
+                catch { }
+            }
+
+            // ★ fallback: WDesk accent
+            return GetThemeColor("WidgetAccent", Color.FromRgb(0x3B, 0x82, 0xF6));
+        }
+
+        // ★ Overload قدیمی
         protected static Color ResolveAccentColor(string accentSetting)
         {
-            if (!string.IsNullOrEmpty(accentSetting) && accentSetting != "auto")
-                return ParseColor(accentSetting, Color.FromRgb(0x3B, 0x82, 0xF6));
             return GetThemeColor("WidgetAccent", Color.FromRgb(0x3B, 0x82, 0xF6));
         }
 

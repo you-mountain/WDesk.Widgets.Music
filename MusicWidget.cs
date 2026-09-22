@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using WDesk.Core;
 
 namespace WDesk.Widgets.Music
@@ -39,7 +40,8 @@ namespace WDesk.Widgets.Music
             {
                 new WStyle { Id = "style1", Name = "Bars",    Icon = "\uE8F1", PreviewEmoji = "🎵" },
                 new WStyle { Id = "style2", Name = "Wave",    Icon = "\uE7C4", PreviewEmoji = "🌊" },
-                new WStyle { Id = "style3", Name = "Compact", Icon = "\uE790", PreviewEmoji = "📻" }
+                new WStyle { Id = "style3", Name = "Compact", Icon = "\uE790", PreviewEmoji = "📻" },
+                new WStyle { Id = "style4", Name = "Circle",  Icon = "\uE91F", PreviewEmoji = "⭕" }
             };
         }
 
@@ -47,6 +49,7 @@ namespace WDesk.Widgets.Music
         {
             if (styleId == "style2") return new Style.Style2();
             if (styleId == "style3") return new Style.Style3();
+            if (styleId == "style4") return new Style.Style4();
             return new Style.Style1();
         }
 
@@ -59,12 +62,10 @@ namespace WDesk.Widgets.Music
             var state = new Dictionary<string, string>();
             state["bars_count"] = GetSetting(instance, "bars_count", "32");
             state["sensitivity"] = GetSetting(instance, "sensitivity", "100");
-            state["bg_mode"] = GetSetting(instance, "bg_mode", "solid");
-            state["bg_opacity"] = GetSetting(instance, "bg_opacity", "100");
-            state["accent_color"] = GetSetting(instance, "accent_color", "auto");
-            state["corner_radius"] = GetSetting(instance, "corner_radius", "16");
             state["show_label"] = GetSetting(instance, "show_label", "true");
-            state["show_shadow"] = GetSetting(instance, "show_shadow", "true");
+            state["show_track_info"] = GetSetting(instance, "show_track_info", "true");
+            state["use_cover_color"] = GetSetting(instance, "use_cover_color", "true");
+            state["show_cover"] = GetSetting(instance, "show_cover", "true");
 
             Action triggerLive = () =>
             {
@@ -72,7 +73,7 @@ namespace WDesk.Widgets.Music
                 catch { }
             };
 
-            // Equalizer
+            // ═══ Equalizer ═══
             root.Children.Add(CreateSectionHeader("Equalizer", "Visualizer settings"));
 
             var barsCombo = CreateComboBox();
@@ -104,82 +105,31 @@ namespace WDesk.Widgets.Music
             };
             root.Children.Add(CreateRow("Sensitivity", "How responsive to audio", sensCombo));
 
-            // Display
+            // ═══ Track Info ═══
+            root.Children.Add(CreateSectionHeader("Track Info", "From Windows Media Session"));
+
+            var trackInfoToggle = CreateToggle(state["show_track_info"] == "true");
+            trackInfoToggle.Checked += (s, e) => { state["show_track_info"] = "true"; triggerLive(); };
+            trackInfoToggle.Unchecked += (s, e) => { state["show_track_info"] = "false"; triggerLive(); };
+            root.Children.Add(CreateToggleRow("Show Track Info", "Title and artist from any player", trackInfoToggle));
+
+            var coverToggle = CreateToggle(state["show_cover"] == "true");
+            coverToggle.Checked += (s, e) => { state["show_cover"] = "true"; triggerLive(); };
+            coverToggle.Unchecked += (s, e) => { state["show_cover"] = "false"; triggerLive(); };
+            root.Children.Add(CreateToggleRow("Show Cover", "Album art", coverToggle));
+
+            var coverColorToggle = CreateToggle(state["use_cover_color"] == "true");
+            coverColorToggle.Checked += (s, e) => { state["use_cover_color"] = "true"; triggerLive(); };
+            coverColorToggle.Unchecked += (s, e) => { state["use_cover_color"] = "false"; triggerLive(); };
+            root.Children.Add(CreateToggleRow("Dynamic Accent", "Extract color from album art", coverColorToggle));
+
+            // ═══ Display ═══
             root.Children.Add(CreateSectionHeader("Display", "What to show"));
 
             var labelToggle = CreateToggle(state["show_label"] == "true");
             labelToggle.Checked += (s, e) => { state["show_label"] = "true"; triggerLive(); };
             labelToggle.Unchecked += (s, e) => { state["show_label"] = "false"; triggerLive(); };
             root.Children.Add(CreateToggleRow("Show Label", "Display 'NOW PLAYING'", labelToggle));
-
-            var shadowToggle = CreateToggle(state["show_shadow"] == "true");
-            shadowToggle.Checked += (s, e) => { state["show_shadow"] = "true"; triggerLive(); };
-            shadowToggle.Unchecked += (s, e) => { state["show_shadow"] = "false"; triggerLive(); };
-            root.Children.Add(CreateToggleRow("Shadow", "Drop shadow under widget", shadowToggle));
-
-            // Appearance
-            root.Children.Add(CreateSectionHeader("Appearance", "Look and feel"));
-
-            var bgCombo = CreateComboBox();
-            AddComboItem(bgCombo, "Transparent", "transparent");
-            AddComboItem(bgCombo, "Solid", "solid");
-            AddComboItem(bgCombo, "Glass", "glass");
-            AddComboItem(bgCombo, "Acrylic", "acrylic");
-            AddComboItem(bgCombo, "Gradient", "gradient");
-            SelectComboItem(bgCombo, state["bg_mode"]);
-            bgCombo.SelectionChanged += (s, e) =>
-            {
-                state["bg_mode"] = GetComboTag(bgCombo, "solid");
-                triggerLive();
-            };
-            root.Children.Add(CreateRow("Background", "Background style", bgCombo));
-
-            var opacityCombo = CreateComboBox();
-            AddComboItem(opacityCombo, "0%", "0");
-            AddComboItem(opacityCombo, "20%", "20");
-            AddComboItem(opacityCombo, "40%", "40");
-            AddComboItem(opacityCombo, "60%", "60");
-            AddComboItem(opacityCombo, "80%", "80");
-            AddComboItem(opacityCombo, "100%", "100");
-            SelectComboItem(opacityCombo, state["bg_opacity"]);
-            opacityCombo.SelectionChanged += (s, e) =>
-            {
-                state["bg_opacity"] = GetComboTag(opacityCombo, "100");
-                triggerLive();
-            };
-            root.Children.Add(CreateRow("Opacity", "Background transparency", opacityCombo));
-
-            var accentCombo = CreateComboBox();
-            AddComboItem(accentCombo, "Auto (Theme)", "auto");
-            AddComboItem(accentCombo, "Blue", "#3B82F6");
-            AddComboItem(accentCombo, "Purple", "#8B5CF6");
-            AddComboItem(accentCombo, "Pink", "#EC4899");
-            AddComboItem(accentCombo, "Red", "#EF4444");
-            AddComboItem(accentCombo, "Orange", "#F59E0B");
-            AddComboItem(accentCombo, "Green", "#22C55E");
-            AddComboItem(accentCombo, "Cyan", "#06B6D4");
-            SelectComboItem(accentCombo, state["accent_color"]);
-            accentCombo.SelectionChanged += (s, e) =>
-            {
-                state["accent_color"] = GetComboTag(accentCombo, "auto");
-                triggerLive();
-            };
-            root.Children.Add(CreateRow("Accent", "Primary color", accentCombo));
-
-            var radiusCombo = CreateComboBox();
-            AddComboItem(radiusCombo, "0px", "0");
-            AddComboItem(radiusCombo, "8px", "8");
-            AddComboItem(radiusCombo, "12px", "12");
-            AddComboItem(radiusCombo, "16px", "16");
-            AddComboItem(radiusCombo, "20px", "20");
-            AddComboItem(radiusCombo, "24px", "24");
-            SelectComboItem(radiusCombo, state["corner_radius"]);
-            radiusCombo.SelectionChanged += (s, e) =>
-            {
-                state["corner_radius"] = GetComboTag(radiusCombo, "16");
-                triggerLive();
-            };
-            root.Children.Add(CreateRow("Corner Radius", "Border roundness", radiusCombo));
 
             var saveBtn = new Button
             {

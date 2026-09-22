@@ -4,6 +4,7 @@ using System;
 using System.Numerics;
 using Windows.UI.Input;
 using Complex = NAudio.Dsp.Complex;
+using MediaColor = System.Windows.Media.Color;
 
 namespace WDesk.Widgets.Music
 {
@@ -47,6 +48,8 @@ namespace WDesk.Widgets.Music
 
         public bool IsCapturing { get { return _capture != null; } }
         public float[] Spectrum { get { return _spectrum; } }
+
+        public MediaColor DominantColor => TrackInfoService.Instance.DominantColor;
         public float CurrentRms { get { return _currentRms; } }
         public bool IsSilent { get { return _currentRms < 0.003f; } }
 

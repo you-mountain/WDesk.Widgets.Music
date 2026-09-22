@@ -13,38 +13,97 @@ namespace WDesk.Widgets.Music.Style
     {
         private Rectangle[] _bars = new Rectangle[0];
         private DispatcherTimer _renderTimer;
+        private DispatcherTimer _infoTimer;
 
         public override FrameworkElement Build(PlacedWidget instance)
         {
             var barsCount = GetInt(instance, "bars_count", 32);
             var sensitivity = GetInt(instance, "sensitivity", 100) / 100.0;
-            var bgMode = GetSetting(instance, "bg_mode", "solid");
-            var bgOpacity = GetInt(instance, "bg_opacity", 100);
-            var cornerRadius = GetInt(instance, "corner_radius", 16);
-            var accentSetting = GetSetting(instance, "accent_color", "auto");
             var showLabel = GetBool(instance, "show_label", true);
-            var showShadow = GetBool(instance, "show_shadow", true);
+            var showTrackInfo = GetBool(instance, "show_track_info", true);
+            var showCover = GetBool(instance, "show_cover", true);
 
-            var accentColor = ResolveAccentColor(accentSetting);
-            var accentBrush = new SolidColorBrush(accentColor);
-            var textBrush = new SolidColorBrush(GetThemeColor("WidgetTextPrimary", Colors.White));
-            var txtColor = ((SolidColorBrush)textBrush).Color;
-            var mutedBrush = new SolidColorBrush(Color.FromArgb(0xA0, txtColor.R, txtColor.G, txtColor.B));
-
-            var engine = AudioCaptureService.Instance;
-            engine.Start();
+            var trackService = TrackInfoService.Instance;
 
             var root = new Grid();
 
-            var bg = BuildBackground(bgMode, bgOpacity, cornerRadius);
-            bg.Effect = BuildShadow(showShadow, 12);
+            // ═══ Background — WDesk core ═══
+            var bg = BuildBackground();
             root.Children.Add(bg);
 
+            // ═══ Layout ═══
             var content = new Grid { Margin = new Thickness(16, 14, 16, 14) };
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Track info
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Label
+            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Bars
             root.Children.Add(content);
 
+            // ═══ Track Info Row ═══
+            var trackInfoPanel = new Grid();
+            trackInfoPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // Cover
+            trackInfoPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Text
+            trackInfoPanel.Visibility = showTrackInfo ? Visibility.Visible : Visibility.Collapsed;
+
+            // Cover
+            var coverBox = new Border
+            {
+                Width = 40,
+                Height = 40,
+                CornerRadius = new CornerRadius(8),
+                VerticalAlignment = VerticalAlignment.Center,
+                ClipToBounds = true,
+                Background = new SolidColorBrush(Color.FromArgb(0x30, 0x3B, 0x82, 0xF6))
+            };
+
+            if (trackService.CoverArt != null)
+            {
+                coverBox.Child = new Image
+                {
+                    Source = trackService.CoverArt,
+                    Stretch = Stretch.UniformToFill
+                };
+            }
+            coverBox.Visibility = showCover ? Visibility.Visible : Visibility.Collapsed;
+
+            Grid.SetColumn(coverBox, 0);
+            trackInfoPanel.Children.Add(coverBox);
+
+            // Text
+            var textPanel = new StackPanel
+            {
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var titleText = new TextBlock
+            {
+                Text = trackService.Title,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(GetThemeColor("WidgetTextPrimary", Colors.White)),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            textPanel.Children.Add(titleText);
+
+            var artistText = new TextBlock
+            {
+                Text = trackService.Artist,
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xA0,
+                    GetThemeColor("WidgetTextPrimary", Colors.White).R,
+                    GetThemeColor("WidgetTextPrimary", Colors.White).G,
+                    GetThemeColor("WidgetTextPrimary", Colors.White).B)),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            textPanel.Children.Add(artistText);
+
+            Grid.SetColumn(textPanel, 1);
+            trackInfoPanel.Children.Add(textPanel);
+
+            Grid.SetRow(trackInfoPanel, 0);
+            content.Children.Add(trackInfoPanel);
+
+            // ═══ Label ═══
             if (showLabel)
             {
                 var label = new TextBlock
@@ -52,13 +111,20 @@ namespace WDesk.Widgets.Music.Style
                     Text = "NOW PLAYING",
                     FontSize = 9,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = mutedBrush,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xA0,
+                        GetThemeColor("WidgetTextPrimary", Colors.White).R,
+                        GetThemeColor("WidgetTextPrimary", Colors.White).G,
+                        GetThemeColor("WidgetTextPrimary", Colors.White).B)),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 8)
+                    Margin = new Thickness(0, 8, 0, 8)
                 };
-                Grid.SetRow(label, 0);
+                Grid.SetRow(label, 1);
                 content.Children.Add(label);
             }
+
+            // ═══ Bars ═══
+            var accentColor = ResolveAccentColor(instance);
+            var accentBrush = new SolidColorBrush(accentColor);
 
             var eqGrid = new UniformGrid
             {
@@ -67,7 +133,6 @@ namespace WDesk.Widgets.Music.Style
             };
 
             _bars = new Rectangle[barsCount];
-
             for (int i = 0; i < barsCount; i++)
             {
                 var bar = new Rectangle
@@ -84,15 +149,23 @@ namespace WDesk.Widgets.Music.Style
                 eqGrid.Children.Add(bar);
             }
 
-            Grid.SetRow(eqGrid, 1);
+            Grid.SetRow(eqGrid, 2);
             content.Children.Add(eqGrid);
 
+            // ═══ Render Loop ═══
             _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
             _renderTimer.Tick += (s, e) =>
             {
-                var spectrum = engine.Spectrum;
+                var spectrum = AudioCaptureService.Instance.Spectrum;
                 var spectrumLen = spectrum.Length;
                 var maxHeight = 60.0;
+
+                // ★ Accent از cover
+                var newAccentColor = ResolveAccentColor(instance);
+                if (accentBrush.Color != newAccentColor)
+                {
+                    accentBrush.Color = newAccentColor;
+                }
 
                 for (int i = 0; i < _bars.Length; i++)
                 {
@@ -113,13 +186,30 @@ namespace WDesk.Widgets.Music.Style
             };
             _renderTimer.Start();
 
+            // ═══ Track Info Update ═══
+            _infoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _infoTimer.Tick += (s, e) =>
+            {
+                titleText.Text = trackService.Title;
+                artistText.Text = trackService.Artist;
+
+                if (showCover && trackService.CoverArt != null && coverBox.Child is not Image)
+                {
+                    coverBox.Child = new Image
+                    {
+                        Source = trackService.CoverArt,
+                        Stretch = Stretch.UniformToFill
+                    };
+                }
+            };
+            _infoTimer.Start();
+
             root.Unloaded += (s, e) =>
             {
-                if (_renderTimer != null)
-                {
-                    _renderTimer.Stop();
-                    _renderTimer = null;
-                }
+                _renderTimer?.Stop();
+                _renderTimer = null;
+                _infoTimer?.Stop();
+                _infoTimer = null;
             };
 
             return root;
